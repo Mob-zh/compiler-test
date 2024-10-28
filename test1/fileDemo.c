@@ -1,27 +1,26 @@
-﻿//demo 1   文件输入：文件操作的读取
+﻿#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #define BUFLEN  256
 #define VLEN    256
 #define TLEN    256
 #define PLEN    256
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-struct G_st
-{
-    char V[VLEN];
-    char T[TLEN];
-    char P[PLEN];
-    char S;
-    int type;
-}G;
+struct G_st {
+    char V[VLEN];       // 非终结符集合
+    char T[TLEN];       // 终结符集合
+    char P[PLEN];       // 产生式
+    char S;             // 开始符号
+    int type;           // 文法类型
+} G;
 
 static int Check_Gtype(struct G_st G);
 
-int main(int argc,char* argv[]) {
+int main(int argc, char* argv[]) {
 
-    if(argc < 2){
-        fprintf(stderr,"Usage:%s <filepath>\n",argv[0]);
+    if(argc < 2) {
+        fprintf(stderr, "Usage: %s <filepath>\n", argv[0]);
         exit(1);
     }
 
@@ -29,119 +28,177 @@ int main(int argc,char* argv[]) {
     FILE* source;
     int i = 1;
     
-    const char* pgm = argv[1];   
-    source = fopen(pgm, "r");    ////获得文件指针，"r"表示只读方式打开
-    if(source == NULL){
+    const char* pgm = argv[1];
+    source = fopen(pgm, "r");   // 以只读方式打开文件
+    if(source == NULL) {
         perror("fopen()");
         exit(1);
     }
-    while (1) {
 
-        if (fgets(lineBuf, BUFLEN - 1, source)) {  ///逐行读入文件内容，每次读入的内容都存放在lineBuf中
-            int lineBuf_len;
-            lineBuf_len = strlen(lineBuf);
-            if((lineBuf_len = strlen(lineBuf)) <= 2){
-                continue;
-            }
-            switch (i)
-            {
+    // 按行读取文件内容并处理
+    while (fgets(lineBuf, BUFLEN - 1, source)) {
+        int lineBuf_len = strlen(lineBuf);
+        if (lineBuf_len <= 2) continue;  // 跳过空行
+        
+        switch (i) {
             case 1:
-                /* code */
-                strcpy(G.V,lineBuf);
+                strcpy(G.V, lineBuf);
                 printf("------------------------\n");
-                printf("V:%s",G.V);
+                printf("V: %s", G.V);
                 i++;
                 break;
             case 2:
-                /* code */
-                strcpy(G.T,lineBuf);
-                printf("T:%s",G.T);
+                strcpy(G.T, lineBuf);
+                printf("T: %s", G.T);
                 i++;
                 break;
             case 3:
-                /* code */
-                sprintf(G.P,"%s",lineBuf);
-                printf("P:%s",G.P);
+                sprintf(G.P, "%s", lineBuf);
+                printf("P: %s", G.P);
                 i++;
                 break;
             case 4:
-                /* code */
                 G.S = lineBuf[0];
-                printf("S:%c\n\n",G.S);
+                printf("S: %c\n\n", G.S);
 
                 G.type = Check_Gtype(G);
                 
-                printf("G Is type %d Grammar\n",G.type);
+                printf("G is type %d Grammar\n", G.type);
                 printf("------------------------\n");
 
-                i = 1;  
+                i = 1;  // 重置，准备读取下一个文法
                 break;
-
             default:
                 break;
-            }
-            ///这里按照乔姆斯基的分类store每行content
-
-            // printf("[%ld]%s", strlen(lineBuf),lineBuf);
-        }
-        else {   ////已经到了文件末尾，可以直接退出
-            ////end of file
-            break;
         }
     }
 
-
-    fclose(source);   ///用完后要关闭文件指针
+    fclose(source);  // 关闭文件
     return 0;
 }
 
-static void del_SubStr(char *str,char *substr)
-{
-    int len1 = strlen(str),len2 = strlen(substr);
-    while(strstr(str,substr)){
-        int pos = strstr(str,substr)-str;
-        for(int i = pos;i<len1-len2;++i){
-            str[i] = str[i+len2];
+// 删除子字符串
+static void del_SubStr(char *str, char *substr) {
+    int len1 = strlen(str), len2 = strlen(substr);
+    while (strstr(str, substr)) {
+        int pos = strstr(str, substr) - str;
+        for (int i = pos; i < len1 - len2; ++i) {
+            str[i] = str[i + len2];
         }
         len1 -= len2;
         str[len1] = '\0';
     }
-
 }
-static int Check_Gtype(struct G_st G){
 
+// 判断文法的类型
+static int Check_Gtype(struct G_st G) {
     char* temp = NULL;
     char G_P[PLEN][PLEN];
     int cnt = 0;
-    printf("%s", G.P);
-    temp = strtok(G.P, ",");  ////strtok的第一个参数不能为指向常量的指针，我们使用字符数组就好
-    // printf("temp:%s\n", temp);
-    strcpy(G_P[cnt++],temp);
-    while (1) {
-        // printf("len:%ld\n", strlen(temp));    ///strlen可以获得已\0结尾的字符串的长度，需要包含头文件string.h
-        temp = strtok(NULL, ",");   ////strtok里面有个静态变量会记录上次分割的地方，
-        if(temp == NULL) break;
 
-        strcpy(G_P[cnt++],temp);
+    temp = strtok(G.P, ",");
+    strcpy(G_P[cnt++], temp);
+    while ((temp = strtok(NULL, ","))) {
+        strcpy(G_P[cnt++], temp);
     }
     
-    // printf("%d\n",cnt);
-    for (int i = 0; i < cnt; i++)
-    {
+    int isRegular = 1, isContextFree = 1, isContextSensitive = 1;
+    
+    
+    // 检查每个产生式的左部和右部
+    for (int i = 0; i < cnt; i++) {
         char *lstr, *rstr;
-        int llen = 0,rlen = 0;
-        llen = strlen(lstr = strtok(G_P[i],"->"));
-        rlen = strlen(rstr = strtok(NULL,"->"));
+        int llen, rlen;
+
+        llen = strlen(lstr = strtok(G_P[i], "->"));
+        rlen = strlen(rstr = strtok(NULL, "->"));
+
+        char sub_rstr[PLEN][PLEN];
+        int sub_cnt = 0;
+        temp = strtok(rstr,"|");
         
-        if(i == cnt - 1){
-            rstr[strlen(rstr)-2] = 0;
-            rlen -= 2;
+        if(temp != NULL){
+            strcpy(sub_rstr[sub_cnt++],temp);
+            while ((temp = strtok(NULL, "|"))) {
+                strcpy(sub_rstr[sub_cnt++], temp);
+            }
+            //
+            for (int j = 0; j < sub_cnt; j++)
+            {
+                rlen = strlen(sub_rstr[j]);
+                strcpy(rstr,sub_rstr[j]);
+                //最后一个规则的换行符
+                if (i == cnt - 1 && j == sub_cnt - 1) {
+                    rstr[strlen(rstr) - 2] = '\0';
+                    rlen -= 2;
+                }
+
+                 printf("%s[%d] -> %s[%d]\n", lstr, llen, rstr, rlen);
+
+                // 判断是否为正规文法
+                if (llen != 1 || rlen > 2 || (rlen == 2 && (rstr[1] >= 'A' && rstr[1] <= 'Z') && (rstr[0] >= 'A' && rstr[0] <= 'Z')) ) {
+                    isRegular = 0;
+                }
+                // 判断是否为上下文无关文法
+                int Freecnt = 0;
+                for(int i = 0; i < llen; i++){
+                    if((lstr[i] >= 'A' && lstr[0] <= 'Z')) {
+                        if(++Freecnt >= 2){
+                            isContextFree = 0;
+                            break;
+                        }
+                    }
+                }
+                // 判断是否为上下文相关文法
+                if (llen > rlen) {
+                    isContextSensitive = 0;
+                    isContextFree = 0;
+                    isRegular = 0;
+                }
+                
+            }
+            
         }
-        printf("%s[%d]->%s[%d]\n",lstr,llen,rstr,rlen);        
+        else{
+            //最后一个规则的换行符
+            if (i == cnt - 1) {
+                rstr[strlen(rstr) - 2] = '\0';
+                rlen -= 2;
+            }
 
+            printf("%s[%d] -> %s[%d]\n", lstr, llen, rstr, rlen);
+
+            // 判断是否为正规文法
+            if (llen != 1 || rlen > 2 || (rlen == 2 && (rstr[1] >= 'A' && rstr[1] <= 'Z') && (rstr[0] >= 'A' && rstr[0] <= 'Z')) ) {
+                isRegular = 0;
+            }
+            // 判断是否为上下文无关文法
+            int Freecnt = 0;
+            for(int i = 0; i < llen; i++){
+                if((lstr[i] >= 'A' && lstr[0] <= 'Z')) {
+                    if(++Freecnt >= 2){
+                        isContextFree = 0;
+                        break;
+                    }
+                }
+            }
+            // 判断是否为上下文相关文法
+            if (llen > rlen) {
+                isContextSensitive = 0;
+                isContextFree = 0;
+                isRegular = 0;
+            }
+        }
+        
     }
-    
 
-    return 0;
+    if (isRegular) {
+        return 3;  // 正规文法
+    } else if (isContextFree) {
+        return 2;  // 上下文无关文法
+    } else if (isContextSensitive) {
+        return 1;  // 上下文相关文法
+    } else {
+        return 0;  // 无限制文法
+    }
 }
-
