@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "SCAN.C": "cpp",
+        "MAIN.C": "cpp",
+        "UTIL.C": "cpp"
+    }
+}
